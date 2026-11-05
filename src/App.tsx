@@ -1,11 +1,26 @@
 
-import React, { useMemo, useState } from "react";
+import React, { Suspense, lazy, useMemo, useState } from "react";
 import {
   Search, ShoppingBag, Menu, X, Heart, ChevronRight,
   ChevronDown, Plus, Minus, ArrowRight, Sparkles,
   Truck, ShieldCheck, RotateCcw, MessageCircle, Send,
   Instagram, UserRound, SlidersHorizontal, Star
 } from "lucide-react";
+
+// Load the existing admin dashboard only when the /admin route is opened.
+// Supports either a default export or a named AdminApp export from AdminApp.tsx.
+const AdminDashboard = lazy(async () => {
+  const module = await import("./admin/AdminApp");
+  const exports = module as unknown as {
+    default?: React.ComponentType;
+    AdminApp?: React.ComponentType;
+  };
+  const Dashboard = exports.default ?? exports.AdminApp;
+  if (!Dashboard) {
+    throw new Error("AdminApp.tsx must export its dashboard as default or as AdminApp.");
+  }
+  return { default: Dashboard };
+});
 
 type Product = {
   id: number;
@@ -139,6 +154,16 @@ export default function App() {
     if (!message.trim()) return;
     setSentMessages((current) => [...current, message.trim()]);
     setMessage("");
+  }
+
+  // Keep all hooks above this route check so React hook order stays consistent.
+  const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (currentPath === "/admin" || currentPath.startsWith("/admin/")) {
+    return (
+      <Suspense fallback={<div style={{ padding: 32, fontFamily: "Arial, sans-serif" }}>Loading TIJARA Admin...</div>}>
+        <AdminDashboard />
+      </Suspense>
+    );
   }
 
   function submitOrder(event: React.FormEvent<HTMLFormElement>) {
